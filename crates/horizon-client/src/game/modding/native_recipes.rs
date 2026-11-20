@@ -636,12 +636,19 @@ impl Game<'_> {
             let own = horizon_items::recipe_sources::sources(root, &overlay)?;
             let all = synced_sources(own, received, &types);
             let index = horizon_client::recipe_book::RecipeIndex::load_from_sources(&all);
+            // As `ResolvedSources::load`: the ingredient hooks' fluid ingredients read these tags.
+            let context = self
+                .res
+                .core
+                .item_data
+                .context()
+                .with_fluid_tags(horizon_items::items::fluid_tag_list(root, &overlay)?);
             let recipes = horizon_client::crafting::Recipes::from_sources(
                 root,
                 self.items(),
                 &overlay,
                 all,
-                self.res.core.item_data.context(),
+                &context,
             )?;
             Ok((recipes, index))
         })();
