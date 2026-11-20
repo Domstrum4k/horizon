@@ -165,6 +165,10 @@ impl Game<'_> {
             return Err(DrawError::InvalidWidth);
         }
         let unit = text_unit(text.scale, text.scale_with_distance, offset.length());
+        // A huge scale far away overflows.
+        if !unit.is_finite() {
+            return Err(DrawError::NonFinite);
+        }
         // A line of text is 9 font pixels tall, hung below its anchor: lift it by half.
         let line = [(
             Text::colored(text.text.as_str(), text.color & 0xFF_FFFF),
@@ -181,10 +185,10 @@ impl Game<'_> {
             unit,
             &mut quads,
         );
-        draw.atlas_quads(text.depth, &quads)?;
-        // Glyphs new to the atlas upload with this frame (`Game::text_patches`).
+        // Glyphs new to the atlas upload with this frame (`Game::text_patches`), drawn or not: the
+        // glyph cache already counts them as uploaded.
         self.text_patches.borrow_mut().extend(patches);
-        Ok(())
+        draw.atlas_quads(text.depth, &quads)
     }
     /// Submit quads drawn by a mod pipeline atomically: the handle is checked against the
     /// published pipelines once, then the batch is validated and queued or refused whole.
@@ -1419,6 +1423,14 @@ mod tests {
             );
             assert_eq!(
                 context(game, &mut draw).text(&plain.scale(f32::NAN)),
+                Err(DrawError::NonFinite)
+            );
+            // Finite, but 1024 blocks away its size overflows f32.
+            let huge = WorldText::new([0.0, 64.0, 1024.0], "Home", 0xFFFF_FFFF, WorldDepth::Tested)
+                .scale(f32::MAX)
+                .scale_with_distance();
+            assert_eq!(
+                context(game, &mut draw).text(&huge),
                 Err(DrawError::NonFinite)
             );
             assert_eq!(draw.usage(), before);
