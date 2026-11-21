@@ -1433,6 +1433,18 @@ mod tests {
                 context(game, &mut draw).text(&huge),
                 Err(DrawError::NonFinite)
             );
+            // Its size fits f32, but a glyph 80 font pixels from the centre lands past it.
+            let wide = WorldText::new(
+                at,
+                "Home, sweet home, far away",
+                0xFFFF_FFFF,
+                WorldDepth::Tested,
+            )
+            .scale(f32::MAX);
+            assert_eq!(
+                context(game, &mut draw).text(&wide),
+                Err(DrawError::NonFinite)
+            );
             assert_eq!(draw.usage(), before);
         });
     }
